@@ -1,4 +1,3 @@
-
 // Magic Wand (Fuzzy Selection Tool) for Javascript
 //
 // The MIT License (MIT)
@@ -25,7 +24,6 @@
     
 MagicWand = (function () {
     var lib = {};
-    var C = c0lor; //https://www.npmjs.com/package/c0lor
 
     /** Create a binary mask on the image by color threshold
       * Algorithm: Scanline flood fill (http://en.wikipedia.org/wiki/Flood_fill)
@@ -36,29 +34,6 @@ MagicWand = (function () {
       * @param {Uint8Array} mask of visited points (optional) 
       * @return {Object} mask: {Uint8Array} data, {int} width, {int} height, {Object} bounds
       */
-    
-    //  Values lie between -128 < b <= 127, -128 < a <= 127, 0 <= L <= 100 
-    function convertRGB_Lab(R,G,B){
-        sRGB        = C.space.rgb.sRGB;
-        labD50      = C.space.lab(C.white.D50);
-        var tmp_rgb = C.RGB(R, G, B).rgb()
-        var tmp_XYZ = sRGB.XYZ(tmp_rgb)
-        return labD50.Lab(tmp_XYZ)
-    };
-
-    function deltaE_dE76(x1, x2){
-        a = Math.pow(x2.L - x1.L, 2)
-        b = Math.pow(x2.a - x1.a, 2)
-        c = Math.pow(x2.b - x1.b, 2)
-        return Math.sqrt(a+b+c)
-
-        // return Math.sqrt(
-        //     Math.pow(x2[0] - x1[0], 2) +
-        //     Math.pow(x2[1] - x1[1], 2) +
-        //     Math.pow(x2[2] - x1[2], 2)
-        // );
-    }
-
     lib.floodFill = function(image, px, py, colorThreshold, mask) {
 
         var c, x, newY, el, xr, xl, dy, dyl, dyr, checkY,
@@ -75,44 +50,9 @@ MagicWand = (function () {
 
         i = i * bytes; // start point index in the image data
         var sampleColor = [data[i], data[i + 1], data[i + 2], data[i + 3]]; // start point color (sample)
-        console.log('\n - [MAGIC WAND]\n')
-        // console.log(' - [MAGIC WAND] : ', )
-        console.log(' - [MAGIC WAND] : px, py', px, py)
-        console.log(' - [MAGIC WAND] : sampleColor (RGB) : ', sampleColor)
 
-        var colorspace_LAB = 1
-        if (colorspace_LAB){
-            sampleColor = convertRGB_Lab(sampleColor[0], sampleColor[1], sampleColor[2])
-            console.log(' - [MAGIC WAND] : sampleColor0 (XYZ) : ', sampleColor)
-            colorThreshold = 5
-            
-            black = convertRGB_Lab(0,0,0)
-            white = convertRGB_Lab(255,255,255)
-            console.log(' - [MAGIC WAND] : Black : ', black, ' || white : ', white, ' || delta : ', deltaE_dE76(black, white))
-
-            red = convertRGB_Lab(255,0,0)
-            green = convertRGB_Lab(0,255,0)
-            console.log(' - [MAGIC WAND] : Red : ', red, ' || Green : ', green, ' || delta : ', deltaE_dE76(red, green))
-
-            red = convertRGB_Lab(255,0,0)
-            blue = convertRGB_Lab(0,0,255)
-            console.log(' - [MAGIC WAND] : Red : ', red, ' || Blue : ', blue, ' || delta : ', deltaE_dE76(red, blue))
-
-            green = convertRGB_Lab(0,255,0)
-            blue = convertRGB_Lab(0,0,255)
-            console.log(' - [MAGIC WAND] : Green : ', green, ' || Blue : ', blue, ' || delta : ', deltaE_dE76(green, blue))
-
-
-        }else{
-            var sampleColor_LAB = convertRGB_Lab(sampleColor[0], sampleColor[1], sampleColor[2])
-            console.log(' - [MAGIC WAND] : sampleColor1 (XYZ) : ', sampleColor_LAB)
-        }
-        console.log(' - [MAGIC WAND] : colorThreshold : ', colorThreshold)
-            
-        var verbose = 0
         var stack = [{ y: py, left: px - 1, right: px + 1, dir: 1 }]; // first scanning line
         do {
-            if (verbose) console.log(' - [MAGIC WAND] : stack length : ', stack.length)
             el = stack.shift(); // get line for scanning
 
             checkY = false;
@@ -121,29 +61,14 @@ MagicWand = (function () {
                 i = (dy + x) * bytes; // point index in the image data
 
                 if (visited[dy + x] === 1) continue; // check whether the point has been visited
-                
                 // compare the color of the sample
-                if (colorspace_LAB){
-                    data_LAB = convertRGB_Lab(data[i], data[i+1], data[i+2])
-                    // if (verbose) console.log(' - data_xyz : ', data_xyz)
-                    // delta_L = data_xyz[0] - sampleColor[0]; // check by red
-                    // if (delta_L > colorThreshold[0] || delta_L < -colorThreshold[0]) continue;
-                    // delta_a = data_xyz[1] - sampleColor[1]; // check by green
-                    // if (delta_a > colorThreshold[1] || delta_a < -colorThreshold[1]) continue;
-                    // delta_b = data_xyz[2] - sampleColor[2]; // check by blue
-                    // if (delta_b > colorThreshold[2] || delta_b < -colorThreshold[2]) continue;
-                    diff = deltaE_dE76(sampleColor, data_LAB)
-                    if (verbose) console.log(' - Pt1:', sampleColor, ' Pt2:', data_LAB, ' || Diff : ', diff)
-                    if (Math.abs(diff) > colorThreshold) continue
-                }else{
-                    c = data[i] - sampleColor[0]; // check by red
-                    if (c > colorThreshold || c < -colorThreshold) continue;
-                    c = data[i + 1] - sampleColor[1]; // check by green
-                    if (c > colorThreshold || c < -colorThreshold) continue;
-                    c = data[i + 2] - sampleColor[2]; // check by blue
-                    if (c > colorThreshold || c < -colorThreshold) continue;
-                }
-    
+                c = data[i] - sampleColor[0]; // check by red
+                if (c > colorThreshold || c < -colorThreshold) continue;
+                c = data[i + 1] - sampleColor[1]; // check by green
+                if (c > colorThreshold || c < -colorThreshold) continue;
+                c = data[i + 2] - sampleColor[2]; // check by blue
+                if (c > colorThreshold || c < -colorThreshold) continue;
+
                 checkY = true; // if the color of the new point(x,y) is similar to the sample color need to check minmax for Y 
 
                 result[dy + x] = 1; // mark a new point in mask
@@ -155,32 +80,17 @@ MagicWand = (function () {
                     dyl = dy + xl;
                     i = dyl * bytes; // point index in the image data
                     if (visited[dyl] === 1) break; // check whether the point has been visited
-
                     // compare the color of the sample
-                    if (colorspace_LAB){
-                        data_LAB = convertRGB_Lab(data[i], data[i+1], data[i+2])
-                        // if (verbose) console.log(' - data_xyz : ', data_xyz)
-                        // delta_r = data_xyz[0] - sampleColor[0]; // check by red
-                        // if (delta_r > colorThreshold[0] || delta_r < -colorThreshold[0]) break;
-                        // delta_g = data_xyz[1] - sampleColor[1]; // check by green
-                        // if (delta_g > colorThreshold[1] || delta_g < -colorThreshold[1]) break;
-                        // delta_b = data_xyz[2] - sampleColor[2]; // check by blue
-                        // if (delta_b > colorThreshold[2] || delta_b < -colorThreshold[2]) break;
-                        diff = deltaE_dE76(sampleColor, data_LAB)
-                        // if (verbose) console.log(' - Pt1:', sampleColor, ' Pt2:', data_LAB, ' || Diff : ', diff)
-                        if (Math.abs(diff) > colorThreshold) break
-                    }else{
-                        // console.log('xl : ', xl, ' | i:',i)
-                        c = data[i] - sampleColor[0]; // check by red
-                        if (c > colorThreshold || c < -colorThreshold) break;
-                        c = data[i + 1] - sampleColor[1]; // check by green
-                        if (c > colorThreshold || c < -colorThreshold) break;
-                        c = data[i + 2] - sampleColor[2]; // check by blue
-                        if (c > colorThreshold || c < -colorThreshold) break;
-                    }
+                    c = data[i] - sampleColor[0]; // check by red
+                    if (c > colorThreshold || c < -colorThreshold) break;
+                    c = data[i + 1] - sampleColor[1]; // check by green
+                    if (c > colorThreshold || c < -colorThreshold) break;
+                    c = data[i + 2] - sampleColor[2]; // check by blue
+                    if (c > colorThreshold || c < -colorThreshold) break;
 
                     result[dyl] = 1;
                     visited[dyl] = 1;
+
                     xl--;
                 }
                 xr = x + 1;
@@ -189,31 +99,17 @@ MagicWand = (function () {
                     dyr = dy + xr;
                     i = dyr * bytes; // index point in the image data
                     if (visited[dyr] === 1) break; // check whether the point has been visited
-
                     // compare the color of the sample
-                    if (colorspace_LAB){
-                        data_LAB = convertRGB_Lab(data[i], data[i+1], data[i+2])
-                        // if (verbose) console.log(' - data_xyz : ', data_xyz)
-                        // delta_r = data_xyz[0] - sampleColor[0]; // check by red
-                        // if (delta_r > colorThreshold[0] || delta_r < -colorThreshold[0]) break;
-                        // delta_g = data_xyz[1] - sampleColor[1]; // check by green
-                        // if (delta_g > colorThreshold[1] || delta_g < -colorThreshold[1]) break;
-                        // delta_b = data_xyz[2] - sampleColor[2]; // check by blue
-                        // if (delta_b > colorThreshold[2] || delta_b < -colorThreshold[2]) break;
-                        diff = deltaE_dE76(sampleColor, data_LAB)
-                        if (Math.abs(diff) > colorThreshold) break
-                    }else{
-                        // console.log('xl : ', xl, ' | i:',i)
-                        c = data[i] - sampleColor[0]; // check by red
-                        if (c > colorThreshold || c < -colorThreshold) break;
-                        c = data[i + 1] - sampleColor[1]; // check by green
-                        if (c > colorThreshold || c < -colorThreshold) break;
-                        c = data[i + 2] - sampleColor[2]; // check by blue
-                        if (c > colorThreshold || c < -colorThreshold) break;
-                    }
+                    c = data[i] - sampleColor[0]; // check by red
+                    if (c > colorThreshold || c < -colorThreshold) break;
+                    c = data[i + 1] - sampleColor[1]; // check by green
+                    if (c > colorThreshold || c < -colorThreshold) break;
+                    c = data[i + 2] - sampleColor[2]; // check by blue
+                    if (c > colorThreshold || c < -colorThreshold) break;
 
                     result[dyr] = 1;
                     visited[dyr] = 1;
+
                     xr++;
                 }
 
@@ -238,7 +134,6 @@ MagicWand = (function () {
             }
         } while (stack.length > 0);
 
-        console.log(' - [MAGIC WAND] : =============================== OVER ================================')
         return {
             data: result,
             width: image.width,

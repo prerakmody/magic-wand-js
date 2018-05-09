@@ -51,12 +51,30 @@ MagicWand = (function () {
         b = Math.pow(x2.a - x1.a, 2)
         c = Math.pow(x2.b - x1.b, 2)
         return Math.sqrt(a+b+c)
+    }
 
-        // return Math.sqrt(
-        //     Math.pow(x2[0] - x1[0], 2) +
-        //     Math.pow(x2[1] - x1[1], 2) +
-        //     Math.pow(x2[2] - x1[2], 2)
-        // );
+    function random_test(){
+        // black = convertRGB_Lab(0,0,0)
+        // white = convertRGB_Lab(255,255,255)
+        // console.log(' - [MAGIC WAND] : Black : ', black, ' || white : ', white, ' || delta : ', deltaE_dE76(black, white))
+
+        // red = convertRGB_Lab(255,0,0)
+        // green = convertRGB_Lab(0,255,0)
+        // console.log(' - [MAGIC WAND] : Red : ', red, ' || Green : ', green, ' || delta : ', deltaE_dE76(red, green))
+
+        // red = convertRGB_Lab(255,0,0)
+        // blue = convertRGB_Lab(0,0,255)
+        // console.log(' - [MAGIC WAND] : Red : ', red, ' || Blue : ', blue, ' || delta : ', deltaE_dE76(red, blue))
+
+        // green = convertRGB_Lab(0,255,0)
+        // blue = convertRGB_Lab(0,0,255)
+        // console.log(' - [MAGIC WAND] : Green : ', green, ' || Blue : ', blue, ' || delta : ', deltaE_dE76(green, blue))
+
+        green = convertRGB_Lab(0,255,0)
+        a = [green]
+        if (!(green in a))
+            a.push(green)
+        console.log(' --> a:', a)
     }
 
     lib.floodFill = function(image, px, py, colorThreshold, mask) {
@@ -81,27 +99,13 @@ MagicWand = (function () {
         console.log(' - [MAGIC WAND] : sampleColor (RGB) : ', sampleColor)
 
         var colorspace_LAB = 1
+        var seed_fill      = 0
         if (colorspace_LAB){
-            sampleColor = convertRGB_Lab(sampleColor[0], sampleColor[1], sampleColor[2])
+            sampleColor         = convertRGB_Lab(sampleColor[0], sampleColor[1], sampleColor[2])
+            colorThreshold      = 5
+            colorspace_colors  = [sampleColor]
             console.log(' - [MAGIC WAND] : sampleColor0 (XYZ) : ', sampleColor)
-            colorThreshold = 5
-            
-            black = convertRGB_Lab(0,0,0)
-            white = convertRGB_Lab(255,255,255)
-            console.log(' - [MAGIC WAND] : Black : ', black, ' || white : ', white, ' || delta : ', deltaE_dE76(black, white))
-
-            red = convertRGB_Lab(255,0,0)
-            green = convertRGB_Lab(0,255,0)
-            console.log(' - [MAGIC WAND] : Red : ', red, ' || Green : ', green, ' || delta : ', deltaE_dE76(red, green))
-
-            red = convertRGB_Lab(255,0,0)
-            blue = convertRGB_Lab(0,0,255)
-            console.log(' - [MAGIC WAND] : Red : ', red, ' || Blue : ', blue, ' || delta : ', deltaE_dE76(red, blue))
-
-            green = convertRGB_Lab(0,255,0)
-            blue = convertRGB_Lab(0,0,255)
-            console.log(' - [MAGIC WAND] : Green : ', green, ' || Blue : ', blue, ' || delta : ', deltaE_dE76(green, blue))
-
+            random_test()
 
         }else{
             var sampleColor_LAB = convertRGB_Lab(sampleColor[0], sampleColor[1], sampleColor[2])
@@ -113,6 +117,7 @@ MagicWand = (function () {
         var stack = [{ y: py, left: px - 1, right: px + 1, dir: 1 }]; // first scanning line
         do {
             if (verbose) console.log(' - [MAGIC WAND] : stack length : ', stack.length)
+            console.log(' --> colorspace_colors.length : ', colorspace_colors.length)
             el = stack.shift(); // get line for scanning
 
             checkY = false;
@@ -132,9 +137,29 @@ MagicWand = (function () {
                     // if (delta_a > colorThreshold[1] || delta_a < -colorThreshold[1]) continue;
                     // delta_b = data_xyz[2] - sampleColor[2]; // check by blue
                     // if (delta_b > colorThreshold[2] || delta_b < -colorThreshold[2]) continue;
-                    diff = deltaE_dE76(sampleColor, data_LAB)
-                    if (verbose) console.log(' - Pt1:', sampleColor, ' Pt2:', data_LAB, ' || Diff : ', diff)
-                    if (Math.abs(diff) > colorThreshold) continue
+                    if (seed_fill){
+                        diff = deltaE_dE76(sampleColor, data_LAB)
+                        if (verbose) console.log(' - Pt1:', sampleColor, ' Pt2:', data_LAB, ' || Diff : ', diff)
+                        if (Math.abs(diff) > colorThreshold) continue
+                    }else{
+                        match_flag = 0
+                        colorspace_colors_length = colorspace_colors.length
+                        if (colorspace_colors_length > 1000)
+                            colorspace_colors_start = parseInt(colorspace_colors_length * 0.75)
+                        else
+                            colorspace_colors_start = 0
+                        for (var kk=colorspace_colors_start; kk<colorspace_colors.length; kk++){
+                            diff = deltaE_dE76(colorspace_colors[kk], data_LAB)
+                            if (Math.abs(diff) <= colorThreshold) {
+                                match_flag = 1
+                                break
+                            }
+                        }
+                        if (match_flag == 0) 
+                            continue
+                        else 
+                            colorspace_colors.push(data_LAB)
+                    }
                 }else{
                     c = data[i] - sampleColor[0]; // check by red
                     if (c > colorThreshold || c < -colorThreshold) continue;
@@ -166,9 +191,29 @@ MagicWand = (function () {
                         // if (delta_g > colorThreshold[1] || delta_g < -colorThreshold[1]) break;
                         // delta_b = data_xyz[2] - sampleColor[2]; // check by blue
                         // if (delta_b > colorThreshold[2] || delta_b < -colorThreshold[2]) break;
-                        diff = deltaE_dE76(sampleColor, data_LAB)
-                        // if (verbose) console.log(' - Pt1:', sampleColor, ' Pt2:', data_LAB, ' || Diff : ', diff)
-                        if (Math.abs(diff) > colorThreshold) break
+                        if (seed_fill){
+                            diff = deltaE_dE76(sampleColor, data_LAB)
+                            if (verbose) console.log(' - Pt1:', sampleColor, ' Pt2:', data_LAB, ' || Diff : ', diff)
+                            if (Math.abs(diff) > colorThreshold) break
+                        }else{
+                            match_flag = 0
+                            colorspace_colors_length = colorspace_colors.length
+                            if (colorspace_colors_length > 1000)
+                                colorspace_colors_start = parseInt(colorspace_colors_length * 0.75)
+                            else
+                                colorspace_colors_start = 0
+                            for (var kk=colorspace_colors_start; kk<colorspace_colors.length; kk++){
+                                diff = deltaE_dE76(colorspace_colors[kk], data_LAB)
+                                if (Math.abs(diff) <= colorThreshold) {
+                                    match_flag = 1
+                                    break
+                                }
+                            }
+                            if (match_flag == 0) 
+                                break
+                            else
+                                colorspace_colors.push(data_LAB)
+                        }
                     }else{
                         // console.log('xl : ', xl, ' | i:',i)
                         c = data[i] - sampleColor[0]; // check by red
@@ -200,8 +245,29 @@ MagicWand = (function () {
                         // if (delta_g > colorThreshold[1] || delta_g < -colorThreshold[1]) break;
                         // delta_b = data_xyz[2] - sampleColor[2]; // check by blue
                         // if (delta_b > colorThreshold[2] || delta_b < -colorThreshold[2]) break;
-                        diff = deltaE_dE76(sampleColor, data_LAB)
-                        if (Math.abs(diff) > colorThreshold) break
+                        if (seed_fill){
+                            diff = deltaE_dE76(sampleColor, data_LAB)
+                            if (verbose) console.log(' - Pt1:', sampleColor, ' Pt2:', data_LAB, ' || Diff : ', diff)
+                            if (Math.abs(diff) > colorThreshold) break
+                        }else{
+                            match_flag = 0
+                            colorspace_colors_length = colorspace_colors.length
+                            if (colorspace_colors_length > 1000)
+                                colorspace_colors_start = parseInt(colorspace_colors_length * 0.75)
+                            else
+                                colorspace_colors_start = 0
+                            for (var kk=colorspace_colors_start; kk<colorspace_colors.length; kk++){
+                                diff = deltaE_dE76(colorspace_colors[kk], data_LAB)
+                                if (Math.abs(diff) <= colorThreshold) {
+                                    match_flag = 1
+                                    break
+                                }
+                            }
+                            if (match_flag == 0) 
+                                break
+                            else
+                                colorspace_colors.push(data_LAB)
+                        }
                     }else{
                         // console.log('xl : ', xl, ' | i:',i)
                         c = data[i] - sampleColor[0]; // check by red

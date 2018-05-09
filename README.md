@@ -1,12 +1,17 @@
-magic-wand-js
+magic-wand-js (flood-fill by scanline)
 =============
 
-Magic wand tool (fuzzy selection) by color for Javascript
+### Credits
+1. This repo has been forked from [here](https://github.com/Tamersoul/magic-wand-js) and then edited
+2. Live example: http://jsfiddle.net/Tamersoul/dr7Dw/
 
-Live example: http://jsfiddle.net/Tamersoul/dr7Dw/
+### How to Run
+1. Git clone the repo
+2. Open Terminal and type `http-server` (*you will have to install this via npm*)
+3. Go to localhost:8081 and upload an image
 
-Magic Wand Control for Openlayers 2.13 (use only for "google" and "grid" layers with CORS support)
+### Edits
+1. Added support for LAB colorspace
 
-Live Openlayers example: http://jsfiddle.net/Tamersoul/uBL5C/
-
-Enjoy.
+### To Be Done
+1. Need to change from a seed-fill to a neighbour-based algorithm

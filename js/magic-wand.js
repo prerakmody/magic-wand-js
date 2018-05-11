@@ -70,11 +70,11 @@ MagicWand = (function () {
         // blue = convertRGB_Lab(0,0,255)
         // console.log(' - [MAGIC WAND] : Green : ', green, ' || Blue : ', blue, ' || delta : ', deltaE_dE76(green, blue))
 
-        green = convertRGB_Lab(0,255,0)
-        a = [green]
-        if (!(green in a))
-            a.push(green)
-        console.log(' --> a:', a)
+        // green = convertRGB_Lab(0,255,0)
+        // a = [green]
+        // if (!(green in a))
+        //     a.push(green)
+        // console.log(' --> a:', a)
     }
 
     lib.floodFill = function(image, px, py, colorThreshold, mask) {
@@ -95,14 +95,15 @@ MagicWand = (function () {
         var sampleColor = [data[i], data[i + 1], data[i + 2], data[i + 3]]; // start point color (sample)
         console.log('\n - [MAGIC WAND]\n')
         // console.log(' - [MAGIC WAND] : ', )
-        console.log(' - [MAGIC WAND] : px, py', px, py)
+        console.log(' - [MAGIC WAND] : bytes : ', bytes, ' bytes_row : ', w * bytes)
+        console.log(' - [MAGIC WAND] : px, py : ', px, py, ' || ', py * w + px)
         console.log(' - [MAGIC WAND] : sampleColor (RGB) : ', sampleColor)
 
         var colorspace_LAB = 1
         var seed_fill      = 0
         if (colorspace_LAB){
             sampleColor         = convertRGB_Lab(sampleColor[0], sampleColor[1], sampleColor[2])
-            colorThreshold      = 5
+            colorThreshold      = 2
             colorspace_colors  = [sampleColor]
             console.log(' - [MAGIC WAND] : sampleColor0 (XYZ) : ', sampleColor)
             random_test()
@@ -112,53 +113,104 @@ MagicWand = (function () {
             console.log(' - [MAGIC WAND] : sampleColor1 (XYZ) : ', sampleColor_LAB)
         }
         console.log(' - [MAGIC WAND] : colorThreshold : ', colorThreshold)
-            
-        var verbose = 0
+        
+        console.log('===========================================================================================================================')
+
+        var verbose    = 0
+        var iters      = 0
+        var bytes_row  = w * bytes 
+        var lines_done = 0
         var stack = [{ y: py, left: px - 1, right: px + 1, dir: 1 }]; // first scanning line
         do {
             if (verbose) console.log(' - [MAGIC WAND] : stack length : ', stack.length)
-            console.log(' --> colorspace_colors.length : ', colorspace_colors.length)
             el = stack.shift(); // get line for scanning
-
+            lines_done += 1
+            // if (lines_done > 4)
+            //     break
             checkY = false;
             for (x = el.left + 1; x < el.right; x++) {
                 dy = el.y * w;
                 i = (dy + x) * bytes; // point index in the image data
 
                 if (visited[dy + x] === 1) continue; // check whether the point has been visited
-                
                 // compare the color of the sample
                 if (colorspace_LAB){
                     data_LAB = convertRGB_Lab(data[i], data[i+1], data[i+2])
-                    // if (verbose) console.log(' - data_xyz : ', data_xyz)
-                    // delta_L = data_xyz[0] - sampleColor[0]; // check by red
-                    // if (delta_L > colorThreshold[0] || delta_L < -colorThreshold[0]) continue;
-                    // delta_a = data_xyz[1] - sampleColor[1]; // check by green
-                    // if (delta_a > colorThreshold[1] || delta_a < -colorThreshold[1]) continue;
-                    // delta_b = data_xyz[2] - sampleColor[2]; // check by blue
-                    // if (delta_b > colorThreshold[2] || delta_b < -colorThreshold[2]) continue;
                     if (seed_fill){
                         diff = deltaE_dE76(sampleColor, data_LAB)
                         if (verbose) console.log(' - Pt1:', sampleColor, ' Pt2:', data_LAB, ' || Diff : ', diff)
                         if (Math.abs(diff) > colorThreshold) continue
                     }else{
-                        match_flag = 0
-                        colorspace_colors_length = colorspace_colors.length
-                        if (colorspace_colors_length > 1000)
-                            colorspace_colors_start = parseInt(colorspace_colors_length * 0.75)
-                        else
-                            colorspace_colors_start = 0
-                        for (var kk=colorspace_colors_start; kk<colorspace_colors.length; kk++){
-                            diff = deltaE_dE76(colorspace_colors[kk], data_LAB)
-                            if (Math.abs(diff) <= colorThreshold) {
-                                match_flag = 1
-                                break
+                        // METHOD1 - 
+                            // match_flag = 0
+                            // colorspace_colors_length = colorspace_colors.length
+                            // if (colorspace_colors_length > 1000)
+                            //     colorspace_colors_start = parseInt(colorspace_colors_length * 0.75)
+                            // else
+                            //     colorspace_colors_start = 0
+                            // for (var kk=colorspace_colors_start; kk<colorspace_colors.length; kk++){
+                            //     diff = deltaE_dE76(colorspace_colors[kk], data_LAB)
+                            //     if (Math.abs(diff) <= colorThreshold) {
+                            //         match_flag = 1
+                            //         break
+                            //     }
+                            // }
+                            // if (match_flag == 0) 
+                            //     continue
+                            // else 
+                            //     colorspace_colors.push(data_LAB)
+
+                            // METHOD - 2
+                            /** 
+                             * 1. Check whether this is a middle point
+                             *   --> Check its right and left points (where visited[] == 1) and do a threshold calc
+                             * 2. If it is a left-most or right-most point
+                             *   --> Compare with point above and below it (where visited[] == 1) and do a threshold calc
+                             **/
+                        if (iters == 0){
+                            console.log(' --> Pt : ', dy + x, ' || iters : ', iters, ' || point : first point')
+                            diff = deltaE_dE76(sampleColor, data_LAB)
+                            if (Math.abs(diff) > colorThreshold) continue
+                            else iters += 1
+                        }else{
+                            if (i % bytes_row == 0){ //left-most point
+                                console.log(' --> Pt : ', dy + x, ' || iters : ', iters, ' || point : left-most')
+                                below_i  = i - bytes_row 
+                                top_i    = i + bytes_row
+                                below_pt = below_i / bytes
+                                top_pt   = top_i   / bytes
+                                keep_flag = 0
+                                if (visited[below_pt] == 1 && result[below_pt] == 1){
+                                    below_pt = convertRGB_Lab(data[below_i], data[below_i + 1], data[below_i + 2]) 
+                                    diff    = deltaE_dE76(below_pt, data_LAB)
+                                    if (Math.abs(diff) < colorThreshold) keep_flag = 1
+                                }
+                                if (visited[top_pt] == 1 && result[top_pt] == 1){
+                                    below_pt = convertRGB_Lab(data[top_i], data[top_i + 1], data[top_i + 2]) 
+                                    diff    = deltaE_dE76(top_pt, data_LAB)
+                                    if (Math.abs(diff) < colorThreshold) keep_flag = 1
+                                }
+                                if (keep_flag == 0) continue
+                            }else if(i % bytes_row == bytes_row -1){ //right-most point
+                                console.log(' --> Pt : ', dy + x, ' || iters : ', iters, ' || point : right-most')
+                                a = 1
+                            }else{ //any point in between
+                                prev_i  = (dy + x - 1) * bytes;
+                                prev_pt = dy + x - 1
+                                if (visited[prev_pt] == 1 && result[prev_pt] == 1){
+                                    console.log(' --> Pt : ', dy + x, ' || iters : ', iters, ' || point : between with prev_pt_visited')
+                                    prev_pt = convertRGB_Lab(data[prev_i], data[prev_i + 1], data[prev_i + 2])
+                                    diff    = deltaE_dE76(prev_pt, data_LAB)
+                                    console.log(' ----> diff : ', diff)
+                                    if (Math.abs(diff) > colorThreshold) continue
+                                }else{ //compare with seed-point
+                                    console.log(' --> Pt : ', dy + x, ' || iters : ', iters, ' || point : between with prev_pt_not_visited')
+                                    diff = deltaE_dE76(sampleColor, data_LAB)
+                                    if (Math.abs(diff) > colorThreshold) continue
+                                }
                             }
                         }
-                        if (match_flag == 0) 
-                            continue
-                        else 
-                            colorspace_colors.push(data_LAB)
+                        
                     }
                 }else{
                     c = data[i] - sampleColor[0]; // check by red
@@ -170,7 +222,8 @@ MagicWand = (function () {
                 }
     
                 checkY = true; // if the color of the new point(x,y) is similar to the sample color need to check minmax for Y 
-
+                
+                console.log(' ---> Visited :', dy+x)
                 result[dy + x] = 1; // mark a new point in mask
                 visited[dy + x] = 1; // mark a new point as visited
 
@@ -184,35 +237,64 @@ MagicWand = (function () {
                     // compare the color of the sample
                     if (colorspace_LAB){
                         data_LAB = convertRGB_Lab(data[i], data[i+1], data[i+2])
-                        // if (verbose) console.log(' - data_xyz : ', data_xyz)
-                        // delta_r = data_xyz[0] - sampleColor[0]; // check by red
-                        // if (delta_r > colorThreshold[0] || delta_r < -colorThreshold[0]) break;
-                        // delta_g = data_xyz[1] - sampleColor[1]; // check by green
-                        // if (delta_g > colorThreshold[1] || delta_g < -colorThreshold[1]) break;
-                        // delta_b = data_xyz[2] - sampleColor[2]; // check by blue
-                        // if (delta_b > colorThreshold[2] || delta_b < -colorThreshold[2]) break;
                         if (seed_fill){
                             diff = deltaE_dE76(sampleColor, data_LAB)
                             if (verbose) console.log(' - Pt1:', sampleColor, ' Pt2:', data_LAB, ' || Diff : ', diff)
                             if (Math.abs(diff) > colorThreshold) break
                         }else{
-                            match_flag = 0
-                            colorspace_colors_length = colorspace_colors.length
-                            if (colorspace_colors_length > 1000)
-                                colorspace_colors_start = parseInt(colorspace_colors_length * 0.75)
-                            else
-                                colorspace_colors_start = 0
-                            for (var kk=colorspace_colors_start; kk<colorspace_colors.length; kk++){
-                                diff = deltaE_dE76(colorspace_colors[kk], data_LAB)
-                                if (Math.abs(diff) <= colorThreshold) {
-                                    match_flag = 1
-                                    break
+                            // METHOD 1
+                                // match_flag = 0
+                                // colorspace_colors_length = colorspace_colors.length
+                                // if (colorspace_colors_length > 1000)
+                                //     colorspace_colors_start = parseInt(colorspace_colors_length * 0.75)
+                                // else
+                                //     colorspace_colors_start = 0
+                                // for (var kk=colorspace_colors_start; kk<colorspace_colors.length; kk++){
+                                //     diff = deltaE_dE76(colorspace_colors[kk], data_LAB)
+                                //     if (Math.abs(diff) <= colorThreshold) {
+                                //         match_flag = 1
+                                //         break
+                                //     }
+                                // }
+                                // if (match_flag == 0) 
+                                //     break
+                                // else
+                                //     colorspace_colors.push(data_LAB)
+                            // METHOD 2
+                            if (i % bytes_row == 0){ //left-most point
+                                console.log('  |---> Pt_xl : ', dyl, '|| point : left most point')
+                                below_i  = i - bytes_row 
+                                top_i    = i + bytes_row
+                                below_pt = below_i / bytes
+                                top_pt   = top_i   / bytes
+                                keep_flag = 0
+                                if (visited[below_pt] == 1 && result[below_pt] == 1){
+                                    below_pt = convertRGB_Lab(data[below_i], data[below_i + 1], data[below_i + 2]) 
+                                    diff    = deltaE_dE76(below_pt, data_LAB)
+                                    if (Math.abs(diff) < colorThreshold) keep_flag = 1
+                                }
+                                if (visited[top_pt] == 1 && result[top_pt] == 1){
+                                    below_pt = convertRGB_Lab(data[top_i], data[top_i + 1], data[top_i + 2]) 
+                                    diff    = deltaE_dE76(top_pt, data_LAB)
+                                    if (Math.abs(diff) < colorThreshold) keep_flag = 1
+                                }
+                                if (keep_flag == 0) break
+                            }else if(i % bytes_row == bytes_row -1){ //right-most point
+                                a = 1
+                            }else{ //any point in between
+                                prev_i  = (dyl + 1) * bytes;
+                                prev_pt = dyl + 1
+                                if (visited[prev_pt] == 1 && result[prev_pt] == 1){
+                                    console.log('  |---> Pt_xl : ', dyl + 1, '|| point : between with prev_pt_visited')
+                                    prev_pt = convertRGB_Lab(data[prev_i], data[prev_i + 1], data[prev_i + 2])
+                                    diff    = deltaE_dE76(prev_pt, data_LAB)
+                                    if (Math.abs(diff) > colorThreshold) break
+                                }else{ //compare with seed-point
+                                    console.log('  |---> Pt_xl : ', dyl + 1, '|| point : between with prev_pt_notvisited')
+                                    diff = deltaE_dE76(sampleColor, data_LAB)
+                                    if (Math.abs(diff) > colorThreshold) break
                                 }
                             }
-                            if (match_flag == 0) 
-                                break
-                            else
-                                colorspace_colors.push(data_LAB)
                         }
                     }else{
                         // console.log('xl : ', xl, ' | i:',i)
@@ -223,7 +305,8 @@ MagicWand = (function () {
                         c = data[i + 2] - sampleColor[2]; // check by blue
                         if (c > colorThreshold || c < -colorThreshold) break;
                     }
-
+                    
+                    console.log('  |-----> Visited_xl : ', dyl)
                     result[dyl] = 1;
                     visited[dyl] = 1;
                     xl--;
@@ -250,23 +333,60 @@ MagicWand = (function () {
                             if (verbose) console.log(' - Pt1:', sampleColor, ' Pt2:', data_LAB, ' || Diff : ', diff)
                             if (Math.abs(diff) > colorThreshold) break
                         }else{
-                            match_flag = 0
-                            colorspace_colors_length = colorspace_colors.length
-                            if (colorspace_colors_length > 1000)
-                                colorspace_colors_start = parseInt(colorspace_colors_length * 0.75)
-                            else
-                                colorspace_colors_start = 0
-                            for (var kk=colorspace_colors_start; kk<colorspace_colors.length; kk++){
-                                diff = deltaE_dE76(colorspace_colors[kk], data_LAB)
-                                if (Math.abs(diff) <= colorThreshold) {
-                                    match_flag = 1
-                                    break
+                            // METHOD 1
+                                // match_flag = 0
+                                // colorspace_colors_length = colorspace_colors.length
+                                // if (colorspace_colors_length > 1000)
+                                //     colorspace_colors_start = parseInt(colorspace_colors_length * 0.75)
+                                // else
+                                //     colorspace_colors_start = 0
+                                // for (var kk=colorspace_colors_start; kk<colorspace_colors.length; kk++){
+                                //     diff = deltaE_dE76(colorspace_colors[kk], data_LAB)
+                                //     if (Math.abs(diff) <= colorThreshold) {
+                                //         match_flag = 1
+                                //         break
+                                //     }
+                                // }
+                                // if (match_flag == 0) 
+                                //     break
+                                // else
+                                //     colorspace_colors.push(data_LAB)
+                            // METHOD 2
+                            if (i % bytes_row == 0){ //left-most point
+                                below_i  = i - bytes_row 
+                                top_i    = i + bytes_row
+                                below_pt = below_i / bytes
+                                top_pt   = top_i   / bytes
+                                keep_flag = 0
+                                if (visited[below_pt] == 1 && result[below_pt] == 1){
+                                    below_pt = convertRGB_Lab(data[below_i], data[below_i + 1], data[below_i + 2]) 
+                                    diff    = deltaE_dE76(below_pt, data_LAB)
+                                    if (Math.abs(diff) < colorThreshold) keep_flag = 1
+                                }
+                                if (visited[top_pt] == 1 && result[top_pt] == 1){
+                                    below_pt = convertRGB_Lab(data[top_i], data[top_i + 1], data[top_i + 2]) 
+                                    diff    = deltaE_dE76(top_pt, data_LAB)
+                                    if (Math.abs(diff) < colorThreshold) keep_flag = 1
+                                }
+                                if (keep_flag == 0) break
+                            }else if(i % bytes_row == bytes_row -1){ //right-most point
+                                console.log('  |---> Pt_xl : ', dyr, '|| point : right most point')
+                                a = 1
+                                break
+                            }else{ //any point in between
+                                prev_i  = (dyr - 1) * bytes;
+                                prev_pt = dyr - 1
+                                if (visited[prev_pt] == 1 && result[prev_pt] == 1){
+                                    console.log('  |---> Pt_xr : ', dyr - 1, '|| point : between with prev_pt_visited')
+                                    prev_pt = convertRGB_Lab(data[prev_i], data[prev_i + 1], data[prev_i + 2])
+                                    diff    = deltaE_dE76(prev_pt, data_LAB)
+                                    if (Math.abs(diff) > colorThreshold) break
+                                }else{ //compare with seed-point
+                                    console.log('  |---> Pt_xr : ', dyr - 1, '|| point : between with prev_pt_visited')
+                                    diff = deltaE_dE76(sampleColor, data_LAB)
+                                    if (Math.abs(diff) > colorThreshold) break
                                 }
                             }
-                            if (match_flag == 0) 
-                                break
-                            else
-                                colorspace_colors.push(data_LAB)
                         }
                     }else{
                         // console.log('xl : ', xl, ' | i:',i)
@@ -277,7 +397,7 @@ MagicWand = (function () {
                         c = data[i + 2] - sampleColor[2]; // check by blue
                         if (c > colorThreshold || c < -colorThreshold) break;
                     }
-
+                    console.log('  |-----> Visited_xr : ', dyr)
                     result[dyr] = 1;
                     visited[dyr] = 1;
                     xr++;
